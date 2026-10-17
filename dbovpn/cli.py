@@ -107,7 +107,7 @@ def cmd_user(cfg, a):
         email = users.validate_email(a.email) if a.email else row["email"]
         with db.transaction(ctx.conn):
             ctx.conn.execute("UPDATE vpn_users SET display_name = ?, email = ? WHERE id = ?", (name, email, row["id"]))
-            ctx.audit("user.update", a.username, "name=%s email=%s" % (name, email))
+            ctx.audit("user.update", a.username, db.detail("name_email", name=name, email=email))
         out("%s updated" % a.username)
         return 0
     if a.action == "link":

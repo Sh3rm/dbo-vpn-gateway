@@ -6,6 +6,7 @@ dbovpn with mode 0600.
 """
 
 import contextlib
+import json
 import os
 import sqlite3
 import time
@@ -150,6 +151,12 @@ def transaction(conn):
         conn.execute("ROLLBACK")
         raise
     conn.execute("COMMIT")
+
+
+def detail(key, **params):
+    """Structured audit detail: rendered in the panel language from i18n 'dtl_<key>'
+    (values stay raw). Stored as '@' + JSON so older plain-text rows still render as is."""
+    return "@" + json.dumps({"k": key, "p": params}, ensure_ascii=False, sort_keys=True)
 
 
 def audit(conn, actor, action, target="", detail="", source_ip="", now=None):

@@ -65,6 +65,9 @@ tls_key = /etc/pki/tls/private/vpn.example.com.key
 relay_host = smtp-relay.example.com
 #relay_port = 25
 sender = vpn@example.com
+# Display name in the From header (default: "<customer_name> VPN"). Turkish and
+# other non-ASCII letters are fine.
+#sender_name = Example Corp VPN
 # STARTTLS is used when the relay offers it. Set to no if the relay has a
 # self-signed certificate.
 #tls_verify = yes

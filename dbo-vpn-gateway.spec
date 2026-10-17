@@ -1,5 +1,5 @@
 Name:           dbo-vpn-gateway
-Version:        1.0.2
+Version:        1.0.3
 Release:        1%{?dist}
 Summary:        OpenVPN 2.7 remote-access gateway with a self-service web panel
 License:        Apache-2.0
@@ -109,6 +109,14 @@ exit 0
 %ghost %config(noreplace) %{_sysconfdir}/%{name}/web.env
 
 %changelog
+* Sat Oct 17 2026 Sh3rm - 1.0.3-1
+- README: no reboot before setup (firewalld/SSH warning), full annotated gateway.conf
+- Mail From header carries a display name ([mail] sender_name, default "<customer> VPN")
+- Audit details stored as key + parameters and shown in the panel language
+- Connections: "from user / to user" traffic labels, KB below 1 MB
+- Disconnected sessions leave the panel at once: the daemon hides killed clients until their DISCONNECT
+- doctor: correct label for the runtime ipset check
+
 * Sat Oct 17 2026 Sh3rm - 1.0.2-1
 - Favicon: the full DBO logo instead of a single letter
 

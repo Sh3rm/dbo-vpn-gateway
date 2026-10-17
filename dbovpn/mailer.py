@@ -11,7 +11,7 @@ import socket
 import ssl
 import string
 from email.message import EmailMessage
-from email.utils import formatdate, make_msgid
+from email.utils import formataddr, formatdate, make_msgid
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +34,11 @@ def render(language, name, values):
     return subject, string.Template(body).substitute(values)
 
 
+def from_header(cfg):
+    """'Display Name <sender>'; formataddr RFC 2047-encodes a non-ASCII name (utf-8)."""
+    return formataddr((cfg.sender_name, cfg.sender))
+
+
 class Mailer(object):
     def __init__(self, cfg, timeout=20):
         self.cfg = cfg
@@ -47,7 +52,7 @@ class Mailer(object):
         if not recipients:
             return False, "no recipients"
         msg = EmailMessage()
-        msg["From"] = self.cfg.sender
+        msg["From"] = from_header(self.cfg)
         msg["To"] = ", ".join(recipients)
         msg["Subject"] = subject
         msg["Date"] = formatdate(localtime=True)

@@ -34,9 +34,10 @@ def send_setup_mail(ctx, row, raw):
               "hours": ctx.cfg.setup_link_ttl_hours, "panel_url": config_mod.panel_url(ctx.cfg)}
     ok, error = ctx.mailer.send_template(row["email"], "admin_setup", values, language=row["language"])
     if ok:
-        ctx.audit("mail.admin_setup_link", row["username"], "to %s" % row["email"])
+        ctx.audit("mail.admin_setup_link", row["username"], db.detail("mail_to", email=row["email"]))
     else:
-        ctx.audit("mail.failed", row["username"], "admin setup link to %s: %s" % (row["email"], error))
+        ctx.audit("mail.failed", row["username"], db.detail("mail_failed", mail_code="admin_setup_link",
+                                                            email=row["email"], error=error))
     return ok
 
 
@@ -53,7 +54,7 @@ def add(ctx, username, display_name, email, language):
         ctx.conn.execute("INSERT INTO admins (username, display_name, email, language, created_at)"
                          " VALUES (?, ?, ?, ?, ?)", (username, display_name, email, language, ctx.now()))
         raw = tokens.create(ctx.conn, "admin", username, ctx.cfg.setup_link_ttl_hours, ctx.actor, ctx.now())
-        ctx.audit("admin.add", username, "email=%s" % email)
+        ctx.audit("admin.add", username, db.detail("email", email=email))
     return raw, send_setup_mail(ctx, get(ctx.conn, username), raw)
 
 
@@ -111,5 +112,5 @@ def check_login(conn, cfg, username, password, code, verify_password, burn_time,
     cur = conn.execute("UPDATE admins SET failed_logins = 0, locked_until = ? WHERE id = ? AND failed_logins >= ?",
                        (now + cfg.lockout_minutes * 60, row["id"], cfg.lockout_attempts))
     if cur.rowcount == 1:
-        return None, "locked after %d failures" % cfg.lockout_attempts
+        return None, "locked after repeated failures"
     return None, "wrong password" if not pw_ok else "wrong or reused TOTP code"

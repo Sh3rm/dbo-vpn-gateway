@@ -583,14 +583,21 @@ def doctor(cfg):
         check(not short, "client certificates outlive their accounts (%d enabled users)" % len(rep["accounts"]),
               "; ".join("%s: certificate ends %s, last valid day %s" % s for s in short[:10])
               + " -> reset these users (new setup link issues a new certificate)")
-        for profile, ips in rep["ips"].items():
-            if profile in cfg.profiles:
-                entries = set(fw.words("--ipset=%s" % cfg.profiles[profile].ipset, "--get-entries"))
-                missing = sorted(set(ips) - entries)
-                check(not missing, "ipset %s holds all its users at runtime" % cfg.profiles[profile].ipset,
-                      "missing: %s" % ", ".join(missing))
     except Exception as exc:
         check(False, "database readable (%s)" % exc)
+        rep = {"ips": {}}
+    for profile, ips in rep["ips"].items():
+        if profile not in cfg.profiles:
+            continue
+        ipset = cfg.profiles[profile].ipset
+        label = "firewalld ipset %s runtime entries match the database" % ipset
+        try:
+            entries = set(fw.words("--ipset=%s" % ipset, "--get-entries"))
+        except firewall.FirewallError as exc:
+            check(False, label, "runtime ipset not readable (%s); run: dbo-vpn-gateway setup --apply" % exc)
+            continue
+        missing = sorted(set(ips) - entries)
+        check(not missing, label, "missing at runtime: %s" % ", ".join(missing))
 
     say("")
     say("%d problem(s)" % len(problems) if problems else "all checks passed")

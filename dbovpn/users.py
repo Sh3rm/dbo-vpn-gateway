@@ -149,7 +149,7 @@ def refresh_cert_info(ctx, username):
     try:
         info = ctx.priv.cert_info(username)
     except PrivError as exc:
-        ctx.audit("cert.info_failed", username, str(exc))
+        ctx.audit("cert.info_failed", username, db.detail("error", error=str(exc)))
         return None
     with db.transaction(ctx.conn):
         record_cert_info(ctx.conn, username, info)
@@ -179,13 +179,13 @@ def ensure_fresh_cert(ctx, username):
     except PrivError as exc:
         with db.transaction(ctx.conn):
             ctx.conn.execute("UPDATE vpn_users SET cert_renewing = 0 WHERE username = ?", (username,))
-            ctx.audit("cert.renew_failed", username, str(exc))
+            ctx.audit("cert.renew_failed", username, db.detail("error", error=str(exc)))
         raise ServiceError("cert_renew_failed")
     with db.transaction(ctx.conn):
         record_cert_info(ctx.conn, username, info)
         ctx.conn.execute("UPDATE vpn_users SET needs_new_cert = 0, cert_warned_for = NULL, cert_renewing = 0"
                          " WHERE username = ?", (username,))
-        ctx.audit("cert.renew", username, "%s -> %s" % (old or "-", info.get("not_after") or "-"))
+        ctx.audit("cert.renew", username, db.detail("cert_change", old=old or "-", new=info.get("not_after") or "-"))
     return True
 
 
@@ -270,9 +270,10 @@ def send_setup_mail(ctx, row, raw):
               "hours": ctx.cfg.setup_link_ttl_hours}
     ok, error = ctx.mailer.send_template(row["email"], "vpn_setup", values)
     if ok:
-        ctx.audit("mail.setup_link", row["username"], "to %s" % row["email"])
+        ctx.audit("mail.setup_link", row["username"], db.detail("mail_to", email=row["email"]))
     else:
-        ctx.audit("mail.failed", row["username"], "setup link to %s: %s" % (row["email"], error))
+        ctx.audit("mail.failed", row["username"], db.detail("mail_failed", mail_code="setup_link",
+                                                            email=row["email"], error=error))
     return ok
 
 
@@ -280,10 +281,10 @@ def _kick(ctx, username, reason):
     try:
         killed = ctx.ctl.kick(username)
     except CtlError as exc:
-        ctx.audit("session.kick_failed", username, "%s: %s" % (reason, exc))
+        ctx.audit("session.kick_failed", username, db.detail("kick_failed", reason_code=reason, error=str(exc)))
         return False
     if killed:
-        ctx.audit("session.kick", username, "%s (%d session)" % (reason, killed))
+        ctx.audit("session.kick", username, db.detail("kick", reason_code=reason, n=killed))
     return True
 
 
@@ -310,7 +311,7 @@ def create_user(ctx, username, display_name, email, expires_on):
                 (username, display_name, email, profile.name, ip, day.isoformat(), ctx.now(), ctx.actor))
     except ServiceError as exc:
         if exc.key == "cap_reached":
-            ctx.audit("user.create_refused", username, "user limit reached (%(used)d/%(max)d)" % exc.params)
+            ctx.audit("user.create_refused", username, db.detail("cap_reached", **exc.params))
         raise
 
     try:
@@ -318,20 +319,20 @@ def create_user(ctx, username, display_name, email, expires_on):
     except PrivError as exc:
         with db.transaction(ctx.conn):
             ctx.conn.execute("DELETE FROM vpn_users WHERE username = ?", (username,))
-            ctx.audit("user.create_failed", username, "certificate: %s" % exc)
+            ctx.audit("user.create_failed", username, db.detail("cert_error", error=str(exc)))
         raise ServiceError("cert_failed")
 
     try:
         ctx.priv.ipset_add(profile.name, ip)
     except PrivError as exc:
         # The user exists; 'dbo-vpn-gateway setup' re-syncs ipsets. Audit so it is visible.
-        ctx.audit("firewall.ipset_failed", username, str(exc))
+        ctx.audit("firewall.ipset_failed", username, db.detail("error", error=str(exc)))
     refresh_cert_info(ctx, username)
 
     with db.transaction(ctx.conn):
         raw = tokens.create(ctx.conn, "vpn", username, cfg.setup_link_ttl_hours, ctx.actor, ctx.now())
-        ctx.audit("user.create", username, "profile=%s ip=%s expires_on=%s email=%s"
-                  % (profile.name, ip, day.isoformat(), email))
+        ctx.audit("user.create", username, db.detail("user_created", profile=profile.name, ip=ip,
+                                                     expires_on=day.isoformat(), email=email))
     row = get(ctx.conn, username)
     mail_ok = send_setup_mail(ctx, row, raw)
     return row, raw, mail_ok
@@ -375,7 +376,7 @@ def set_expiry(ctx, username, expires_on):
     with db.transaction(ctx.conn):
         ctx.conn.execute("UPDATE vpn_users SET expires_on = ?, expiry_handled = 0 WHERE id = ?",
                          (day.isoformat(), row["id"]))
-        ctx.audit("user.expiry", username, "%s -> %s" % (row["expires_on"], day.isoformat()))
+        ctx.audit("user.expiry", username, db.detail("expiry_change", old=row["expires_on"], new=day.isoformat()))
 
 
 def reset_user(ctx, username):
@@ -397,18 +398,18 @@ def delete_user(ctx, username):
     try:
         ctx.priv.revoke_cert(username)
     except PrivError as exc:
-        ctx.audit("user.delete_failed", username, "revoke: %s" % exc)
+        ctx.audit("user.delete_failed", username, db.detail("revoke_error", error=str(exc)))
         raise ServiceError("revoke_failed")
     _kick(ctx, username, "deleted")
     try:
         ctx.priv.ipset_del(row["profile"], row["vpn_ip"])
     except PrivError as exc:
-        ctx.audit("firewall.ipset_failed", username, str(exc))
+        ctx.audit("firewall.ipset_failed", username, db.detail("error", error=str(exc)))
     with db.transaction(ctx.conn):
         tokens.invalidate_subject(ctx.conn, "vpn", username)
         end_token_sessions(ctx.conn, row)
         ctx.conn.execute("DELETE FROM vpn_users WHERE id = ?", (row["id"],))
-        ctx.audit("user.delete", username, "ip=%s profile=%s" % (row["vpn_ip"], row["profile"]))
+        ctx.audit("user.delete", username, db.detail("user_deleted", ip=row["vpn_ip"], profile=row["profile"]))
 
 
 def unlock_user(ctx, username):
@@ -423,14 +424,30 @@ def locked_users(conn, now):
     return conn.execute("SELECT * FROM vpn_users WHERE locked_until > ? ORDER BY username", (now,)).fetchall()
 
 
+def wait_sessions_gone(ctl, username, timeout=3.0, interval=0.25, sleep=time.sleep, clock=time.monotonic):
+    """client-kill is asynchronous: poll the management daemon until <username> has no
+    session left (or timeout), so the page rendered next shows the real state.
+    Returns True when no session is listed."""
+    deadline = clock() + timeout
+    while True:
+        try:
+            if not any(s.get("common_name") == username for s in ctl.list_sessions()):
+                return True
+        except CtlError:
+            return False
+        if clock() >= deadline:
+            return False
+        sleep(interval)
+
+
 def kick_user(ctx, username):
     require(ctx, username)
     try:
         killed = ctx.ctl.kick(username)
     except CtlError as exc:
-        ctx.audit("session.kick_failed", username, str(exc))
+        ctx.audit("session.kick_failed", username, db.detail("kick_failed", reason_code="admin", error=str(exc)))
         raise ServiceError("ctl_unreachable")
-    ctx.audit("session.kick", username, "%d session" % killed)
+    ctx.audit("session.kick", username, db.detail("kick", reason_code="admin", n=killed))
     return killed
 
 
@@ -447,11 +464,11 @@ def assign_profile(ctx, username, profile_name):
     try:
         ctx.priv.ipset_del(old, row["vpn_ip"])
     except PrivError as exc:
-        ctx.audit("firewall.ipset_failed", username, str(exc))
+        ctx.audit("firewall.ipset_failed", username, db.detail("error", error=str(exc)))
     with db.transaction(ctx.conn):
         ctx.conn.execute("UPDATE vpn_users SET profile = ? WHERE id = ?", (profile_name, row["id"]))
-        ctx.audit("user.profile", username, "%s -> %s" % (old, profile_name))
-    _kick(ctx, username, "profile changed")
+        ctx.audit("user.profile", username, db.detail("profile_change", old=old, new=profile_name))
+    _kick(ctx, username, "profile_changed")
 
 
 def adopt(conn, cfg, username, actor, now, today):
@@ -473,7 +490,7 @@ def adopt(conn, cfg, username, actor, now, today):
         "INSERT INTO vpn_users (username, display_name, email, profile, vpn_ip, expires_on, adopted,"
         " needs_new_cert, created_at, created_by) VALUES (?, ?, '', ?, ?, ?, 1, 1, ?, ?)",
         (username, username, cfg.default_profile, ip, expires, now, actor))
-    db.audit(conn, actor, "user.adopt", username, "ip=%s expires_on=%s" % (ip, expires), "", now)
+    db.audit(conn, actor, "user.adopt", username, db.detail("user_adopted", ip=ip, expires_on=expires), "", now)
     return True
 
 

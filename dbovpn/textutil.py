@@ -12,6 +12,14 @@ def slug(text):
     return re.sub(r"[^a-z0-9]+", "-", text.translate(TURKISH_ASCII).lower()).strip("-") or "vpn"
 
 
+def human_size(n):
+    """Bytes with one decimal: KB below 1 MB (so a fresh session does not read 0.0), else MB."""
+    n = max(0, int(n or 0))
+    if n < 1024 * 1024:
+        return "%.1f KB" % (n / 1024.0)
+    return "%.1f MB" % (n / (1024.0 * 1024.0))
+
+
 def redact_path(path):
     """Hide the one-time token in /enroll/<token>... and /admin-enroll/<token>... for logs."""
     return TOKEN_PATH_RE.sub(lambda m: "/%s/<redacted>" % m.group(1), path or "")

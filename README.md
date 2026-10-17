@@ -38,10 +38,12 @@ On a fresh Rocky Linux 9 or RHEL 9 server, as root.
 2. Install the RPM from the GitHub release:
 
    ```
-   dnf -y install --setopt=install_weak_deps=False https://github.com/Sh3rm/dbo-vpn-gateway/releases/download/v1.0.2/dbo-vpn-gateway-1.0.2-1.el9.noarch.rpm
+   dnf -y install --setopt=install_weak_deps=False https://github.com/Sh3rm/dbo-vpn-gateway/releases/download/v1.0.3/dbo-vpn-gateway-1.0.3-1.el9.noarch.rpm
    ```
 
    `install_weak_deps=False` matters: otherwise the Copr openvpn package pulls in its data-channel-offload kernel module through DKMS (dkms, gcc, kernel-devel, llvm: about 50 packages), which the gateway does not use.
+
+   **Do not reboot between this step and `dbo-vpn-gateway setup`.** The firewalld package is enabled at install but not started, and on its first start the default `ssh` service allows only port 22, so a server whose SSH listens on another port would lock you out; `setup` starts firewalld safely after allowing the real sshd port(s).
 
 3. Create the configuration from the example and edit it:
 
@@ -81,6 +83,100 @@ The example file (`/usr/share/doc/dbo-vpn-gateway/gateway.conf.example`) documen
 - `[profile NAME]` sections: what users may reach. Exactly one has `default = yes`; new users get it.
 
 After changing the file, run `dbo-vpn-gateway setup`.
+
+The complete annotated example follows. It is the same file as `conf/gateway.conf.example` in this repository (installed as `/usr/share/doc/dbo-vpn-gateway/gateway.conf.example`); a test keeps the two identical. Commented keys show their defaults.
+
+<!-- gateway.conf.example begin -->
+```ini
+# dbo-vpn-gateway configuration: every customer-specific value lives here.
+# Copy to /etc/dbo-vpn-gateway/gateway.conf (root:dbovpn, mode 0640), edit,
+# then run: dbo-vpn-gateway setup
+# The values below are examples (example.com, RFC 5737 documentation addresses).
+
+[gateway]
+# Shown in the panel, in mails and as the authenticator app label ("<name> VPN").
+customer_name = Example Corp
+# Public DNS name of this server: OpenVPN 'remote' in client profiles and the panel URL.
+public_hostname = vpn.example.com
+# Panel languages, the first one is the default (tr, en).
+languages = tr, en
+# Language of mails to VPN users and expiry reminders.
+mail_language = tr
+
+[openvpn]
+# Instance name: /etc/openvpn/server/<instance>.conf, unit openvpn-server@<instance>.
+instance = example-vpn
+port = 1194
+proto = udp
+# Every user gets a fixed address from this subnet; .1 is the server.
+subnet = 10.8.0.0/24
+# Defaults, change only to adopt an existing layout:
+#server_dir = /etc/openvpn/server
+#pki_dir = /etc/openvpn/server/pki
+#server_cert_name = <instance>
+#tls_crypt_key = /etc/openvpn/server/tc.key
+#crl_file = /etc/openvpn/server/crl.pem
+#management_socket = /run/openvpn-server/<instance>-mgmt.sock
+#tun_interface = tun0
+#easyrsa = /usr/share/easy-rsa/3/easyrsa
+# After a full login (password + code) a session token covers the hourly key
+# renegotiation; after this many hours the client must log in again.
+#auth_token_lifetime_hours = 12
+# Prompt shown by the OpenVPN client for the authenticator code.
+#static_challenge_text = Authenticator code
+
+[users]
+# Every VPN user that is not deleted counts (enabled, disabled, expired). Admins do not.
+max_users = 25
+default_expiry_days = 90
+max_expiry_days = 365
+setup_link_ttl_hours = 72
+# Validity of new client certificates (Easy-RSA --days). Default: max_expiry_days
+# + 90, so a certificate issued at setup outlives the longest account period plus
+# 30 days of grace. When a user opens a setup link and their certificate would
+# end before (last valid day + 30 days), a fresh certificate is issued then.
+#client_cert_days = 455
+
+[panel]
+# Networks allowed to reach the admin panel (everything except /enroll/). Comma separated.
+admin_allow = 198.51.100.0/24, 203.0.113.7/32
+# Certificate for public_hostname (nginx).
+tls_cert = /etc/pki/tls/certs/vpn.example.com.crt
+tls_key = /etc/pki/tls/private/vpn.example.com.key
+#https_port = 443
+# gunicorn listens on 127.0.0.1:<listen_port>; nginx proxies to it.
+#listen_port = 8471
+#lockout_attempts = 5
+#lockout_minutes = 15
+#idle_timeout_minutes = 30
+
+[mail]
+# Relay that accepts mail from this server without authentication (port 25).
+relay_host = smtp-relay.example.com
+#relay_port = 25
+sender = vpn@example.com
+# Display name in the From header (default: "<customer_name> VPN"). Turkish and
+# other non-ASCII letters are fine.
+#sender_name = Example Corp VPN
+# STARTTLS is used when the relay offers it. Set to no if the relay has a
+# self-signed certificate.
+#tls_verify = yes
+
+[firewall]
+#vpn_zone = openvpn
+#public_zone = public
+#policy = dbovpn-forward
+
+# Access profiles: what a VPN user may reach. Each user has exactly one; new
+# users get the profile with default = yes. Destinations:
+# ADDRESS[/PREFIX]:PORT[-PORT]/tcp|udp, comma separated. Their networks are
+# pushed to the client as routes (split tunnel).
+[profile app]
+description = Business application (production and test)
+destinations = 203.0.113.10/32:443/tcp, 203.0.113.20/32:443/tcp
+default = yes
+```
+<!-- gateway.conf.example end -->
 
 ## setup
 

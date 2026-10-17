@@ -30,6 +30,10 @@ from dbovpn.mgmt import auth, protocol
 log = logging.getLogger("dbovpn.mgmt")
 
 COMMAND_TIMEOUT = 15
+# After client-kill, OpenVPN 2.7.8 keeps the instance (and lists it in 'status 3')
+# for ~5.6 s until the delayed exit; it is hidden from 'list' until its
+# >CLIENT:DISCONNECT, or at most this long.
+CLOSING_SECONDS = 30
 SWEEP_SECONDS = 300
 KICK_MESSAGE = "HALT,Session closed by the VPN administrator"
 
@@ -136,6 +140,9 @@ class Daemon(object):
         self.ctl_path = ctl_path
         self.events = queue.Queue()
         self.link = None
+        self.closing = {}                 # cid -> monotonic deadline
+        self.closing_lock = threading.Lock()
+        self.clock = time.monotonic
         if verify_password is None:
             from dbovpn.passwords import verify_password
         self.verify_password = verify_password
@@ -149,16 +156,36 @@ class Daemon(object):
         return link.command(text, multiline)
 
     def sessions(self):
+        """Connected sessions, without the ones we already killed that OpenVPN still lists."""
         lines = self.command("status 3", multiline=True)
         if lines and lines[0].startswith("ERROR:"):
             raise LinkDown(lines[0])
-        return [protocol.session_summary(r) for r in protocol.parse_status3(lines)]
+        now = self.clock()
+        with self.closing_lock:
+            for cid in [c for c, deadline in self.closing.items() if deadline <= now]:
+                del self.closing[cid]
+            closing = set(self.closing)
+        return [s for s in (protocol.session_summary(r) for r in protocol.parse_status3(lines))
+                if s["cid"] not in closing]
+
+    def kill(self, cid, message):
+        """client-kill a cid and mark it closing until its >CLIENT:DISCONNECT."""
+        with self.closing_lock:
+            self.closing[cid] = self.clock() + CLOSING_SECONDS
+        return self.command(protocol.client_kill(cid, message))
+
+    def on_event(self, event):
+        """Called by the reader thread. DISCONNECT ends 'closing' at once; everything is queued."""
+        if isinstance(event, protocol.ClientEvent) and event.kind == "DISCONNECT":
+            with self.closing_lock:
+                self.closing.pop(event.cid, None)
+        self.events.put(event)
 
     def kick(self, username):
         killed = 0
         for s in self.sessions():
             if s["common_name"] == username:
-                reply = self.command(protocol.client_kill(s["cid"], KICK_MESSAGE))
+                reply = self.kill(s["cid"], KICK_MESSAGE)
                 if reply.startswith("SUCCESS"):
                     killed += 1
                 else:
@@ -205,7 +232,7 @@ class Daemon(object):
             reply = self.command(protocol.client_deny(event.cid, event.kid, decision.reason,
                                                       decision.client_reason))
             if decision.kill:
-                self.command(protocol.client_kill(event.cid, "HALT,%s" % decision.client_reason))
+                self.kill(event.cid, "HALT,%s" % decision.client_reason)
         log.info("%s cid=%d kid=%d user=%s: %s (%s) -> %s", event.kind, event.cid, event.kid,
                  decision.username or "-", "allow" if decision.allow else "deny", decision.reason, reply)
 
@@ -214,7 +241,8 @@ class Daemon(object):
             db.audit(conn, "vpn:%s" % (target or "unknown"), decision.audit_action, target,
                      decision.audit_detail, event.env.get("untrusted_ip", ""))
             if decision.kill:
-                db.audit(conn, "system:mgmt", "session.kick", target, "renegotiation denied: %s" % decision.reason)
+                db.audit(conn, "system:mgmt", "session.kick", target,
+                         db.detail("kick_reason", reason_code="renegotiation_denied", why=decision.reason))
 
     def sweep(self, conn):
         """Close sessions of users who are disabled, expired, reset or deleted."""
@@ -223,8 +251,9 @@ class Daemon(object):
             row = users.get(conn, s["common_name"])
             refusal = users.login_refusal(row, today)
             if refusal:
-                self.command(protocol.client_kill(s["cid"], KICK_MESSAGE))
-                db.audit(conn, "system:mgmt", "session.kick", s["common_name"], "sweep: %s" % refusal)
+                self.kill(s["cid"], KICK_MESSAGE)
+                db.audit(conn, "system:mgmt", "session.kick", s["common_name"],
+                         db.detail("kick_reason", reason_code="sweep", why=refusal))
                 log.info("sweep: killed cid=%d %s (%s)", s["cid"], s["common_name"], refusal)
 
     # Control socket -------------------------------------------------------------
@@ -273,7 +302,7 @@ class Daemon(object):
         sweep_conn = db.connect(self.db_path)
         backoff = 1
         while True:
-            link = Link(self.cfg.management_socket, self.events.put)
+            link = Link(self.cfg.management_socket, self.on_event)
             try:
                 link.open()
             except OSError as exc:
@@ -282,6 +311,8 @@ class Daemon(object):
                 backoff = min(backoff * 2, 10)
                 continue
             log.info("connected to OpenVPN management %s", self.cfg.management_socket)
+            with self.closing_lock:
+                self.closing.clear()      # cids do not survive an OpenVPN restart
             backoff = 1
             self.link = link
             last_sweep = 0

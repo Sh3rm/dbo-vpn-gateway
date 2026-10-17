@@ -69,7 +69,7 @@ def _fail(event, conn, cfg, row, now, reason):
                        (int(now) + cfg.lockout_minutes * 60, row["id"], cfg.lockout_attempts))
     if cur.rowcount == 1:
         db.audit(conn, "system:mgmt", "vpn.locked", row["username"],
-                 "%d failed logins, locked for %d min" % (cfg.lockout_attempts, cfg.lockout_minutes),
+                 db.detail("locked", n=cfg.lockout_attempts, minutes=cfg.lockout_minutes),
                  event.env.get("untrusted_ip", ""), now)
         reason += "; account locked"
     return _deny(event, reason, row["username"])
@@ -106,7 +106,7 @@ def decide(event, conn, cfg, now, today, verify_password):
                              (cn, session_id, row["cred_epoch"])).fetchone() if session_id else None
         if known is None:
             return _deny(event, "auth-token from an earlier credential epoch or unknown session", cn)
-        via = "auth-token"
+        via = "auth_token"
     elif state == "Initial":
         if row["locked_until"] > now:
             return _deny(event, "locked after repeated failures", cn)
@@ -127,11 +127,11 @@ def decide(event, conn, cfg, now, today, verify_password):
         if session_id:
             conn.execute("INSERT OR REPLACE INTO vpn_sessions (username, session_id, epoch, created_at)"
                          " VALUES (?, ?, ?, ?)", (cn, session_id, row["cred_epoch"], int(now)))
-        via = "password+totp"
+        via = "password_totp"
     else:
         return _deny(event, "auth-token %s" % state, cn)
 
     if event.kind == "REAUTH":
         return Decision(True, "reauth ok", cn)
     return Decision(True, "login ok", cn, lines=client_config_lines(cfg, row),
-                    audit_action="vpn.login", audit_detail="via %s, vpn_ip=%s" % (via, row["vpn_ip"]))
+                    audit_action="vpn.login", audit_detail=db.detail("login", via_code=via, ip=row["vpn_ip"]))

@@ -225,6 +225,10 @@ def parse(text, path=None):
     c.sender = _get(cp, "mail", "sender", required=True)
     if not EMAIL_RE.match(c.sender):
         raise ConfigError("[mail] sender is not a valid address")
+    # Display name in the From header; non-ASCII is RFC 2047-encoded by the mailer.
+    c.sender_name = _get(cp, "mail", "sender_name", c.customer_name + " VPN")
+    if "\n" in c.sender_name or "\r" in c.sender_name:
+        raise ConfigError("[mail] sender_name must be one line")
     c.tls_verify = _get_bool(cp, "mail", "tls_verify", True)
 
     # [firewall]

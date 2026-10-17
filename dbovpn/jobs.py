@@ -37,15 +37,18 @@ def run_expiry(cfg, conn, ctl, mailer, now=None, today=None):
         with db.transaction(conn):
             conn.execute("UPDATE vpn_users SET expiry_handled = 1 WHERE id = ?", (row["id"],))
             users.end_token_sessions(conn, row)
-            db.audit(conn, ACTOR, "user.expired", row["username"], "last valid day %s" % row["expires_on"], "", now)
+            db.audit(conn, ACTOR, "user.expired", row["username"],
+                     db.detail("last_day", date=row["expires_on"]), "", now)
         result["expired"] += 1
         try:
             killed = ctl.kick(row["username"])
             if killed:
-                db.audit(conn, ACTOR, "session.kick", row["username"], "expired (%d session)" % killed, "", now)
+                db.audit(conn, ACTOR, "session.kick", row["username"],
+                         db.detail("kick", reason_code="expired", n=killed), "", now)
                 result["kicked"] += killed
         except CtlError as exc:
-            db.audit(conn, ACTOR, "session.kick_failed", row["username"], "expired: %s" % exc, "", now)
+            db.audit(conn, ACTOR, "session.kick_failed", row["username"],
+                     db.detail("kick_failed", reason_code="expired", error=str(exc)), "", now)
 
     recipients = admin_recipients(conn)
     panel = config_mod.panel_url(cfg)
@@ -72,9 +75,10 @@ def run_expiry(cfg, conn, ctl, mailer, now=None, today=None):
                 conn.execute("UPDATE vpn_users SET %s = expires_on WHERE id = ?" % column, (row["id"],))
                 if ok:
                     db.audit(conn, ACTOR, "mail.%s" % template, row["username"],
-                             "to %d admin(s)" % len(recipients), "", now)
+                             db.detail("mail_admins", n=len(recipients)), "", now)
                 else:
-                    db.audit(conn, ACTOR, "mail.failed", row["username"], "%s: %s" % (template, error), "", now)
+                    db.audit(conn, ACTOR, "mail.failed", row["username"],
+                             db.detail("mail_failed_admins", mail_code=template, error=error), "", now)
             result[key if ok else "mail_failed"] += 1
 
     # Certificates ending before the account: warn admins once per (cert end, last day) pair.
@@ -92,15 +96,16 @@ def run_expiry(cfg, conn, ctl, mailer, now=None, today=None):
         with db.transaction(conn):
             conn.execute("UPDATE vpn_users SET cert_warned_for = ? WHERE id = ?", (marker, row["id"]))
             db.audit(conn, ACTOR, "user.cert_short", row["username"],
-                     "certificate ends %s, last valid day %s" % (row["cert_not_after"], row["expires_on"]), "", now)
+                     db.detail("cert_short", cert=row["cert_not_after"], expires_on=row["expires_on"]), "", now)
             db.audit(conn, ACTOR, "mail.cert_short" if ok else "mail.failed", row["username"],
-                     "to %d admin(s)" % len(recipients) if ok else "cert_short: %s" % error, "", now)
+                     db.detail("mail_admins", n=len(recipients)) if ok else
+                     db.detail("mail_failed_admins", mail_code="cert_short", error=error), "", now)
         result["cert_short"] += 1
 
     with db.transaction(conn):
         purged = tokens.purge(conn, now)
         if purged:
-            db.audit(conn, ACTOR, "token.purge", "", "%d setup token(s)" % purged, "", now)
+            db.audit(conn, ACTOR, "token.purge", "", db.detail("tokens_purged", n=purged), "", now)
         # auth-token sessions older than the token lifetime can no longer be presented.
         conn.execute("DELETE FROM vpn_sessions WHERE created_at < ?",
                      (now - cfg.auth_token_lifetime_hours * 3600 - 3600,))

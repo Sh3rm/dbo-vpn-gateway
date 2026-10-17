@@ -16,7 +16,7 @@ from dbovpn import db, passwords, tokens, totp
 from dbovpn.users import ServiceError
 
 TABLE = {"vpn": "vpn_users", "admin": "admins"}
-ACCOUNT_KIND = {"vpn": "VPN account", "admin": "panel account"}
+ACCOUNT_KIND = {"vpn": "account_vpn", "admin": "account_panel"}
 
 
 def subject_row(conn, kind, username):
@@ -56,7 +56,7 @@ def finish(conn, kind, token, nonce, code, actor, source_ip, now):
     if counter is None:
         with db.transaction(conn):
             tokens.record_failed_attempt(conn, token["id"])
-            db.audit(conn, actor, "enroll.totp_failed", token["subject"], ACCOUNT_KIND[kind], source_ip, now)
+            db.audit(conn, actor, "enroll.totp_failed", token["subject"], db.detail(ACCOUNT_KIND[kind]), source_ip, now)
         raise ServiceError("totp_wrong")
     with db.transaction(conn):
         if not tokens.mark_used(conn, token["id"], now):
@@ -64,7 +64,7 @@ def finish(conn, kind, token, nonce, code, actor, source_ip, now):
         # The proving code's step is stored as used, so it cannot also open the VPN or the panel.
         conn.execute("UPDATE %s SET password_hash = ?, totp_secret = ?, totp_last_counter = ? WHERE username = ?"
                      % TABLE[kind], (token["pending_password_hash"], secret, counter, token["subject"]))
-        db.audit(conn, actor, "enroll.complete", token["subject"], ACCOUNT_KIND[kind], source_ip, now)
+        db.audit(conn, actor, "enroll.complete", token["subject"], db.detail(ACCOUNT_KIND[kind]), source_ip, now)
 
 
 def provisioning(cfg, kind, token):

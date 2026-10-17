@@ -22,7 +22,7 @@ from dbovpn.mailer import Mailer
 from dbovpn.privclient import PrivError, Privileged
 from dbovpn.users import ServiceError
 from dbovpn.web import i18n, qr
-from dbovpn.textutil import redact_path, slug
+from dbovpn.textutil import human_size, redact_path, slug
 
 SECRET_KEY_PATH = "/var/lib/dbo-vpn-gateway/flask-secret.key"
 AUDIT_PAGE = 100
@@ -119,12 +119,19 @@ def create_app(cfg=None, priv=None, ctl=None, mailer=None, db_path=None, secret_
     def detail_label(text):
         return i18n.detail_label(g.get("lang") or cfg.languages[0], text)
 
+    def detail_title(text):
+        return i18n.detail_title(text)
+
     @app.context_processor
     def inject():
-        return {"t": t, "action_label": action_label, "detail_label": detail_label, "now": g.get("now"),
+        return {"t": t, "action_label": action_label, "detail_label": detail_label, "detail_title": detail_title, "now": g.get("now"),
                 "is_locked": users.is_locked,
                 "cert_ends_early": users.cert_ends_early, "needs_new_cert": users.needs_new_cert, "cfg": cfg, "admin": g.get("admin"), "lang": g.get("lang") or cfg.languages[0],
                 "languages": cfg.languages, "today": g.get("today")}
+
+    @app.template_filter("size")
+    def fmt_size(value):
+        return human_size(value)
 
     @app.template_filter("hm")
     def fmt_hm(value):
@@ -279,6 +286,7 @@ def create_app(cfg=None, priv=None, ctl=None, mailer=None, db_path=None, secret_
                 flash(t("done_enabled"), "ok")
             elif action == "disable":
                 users.set_enabled(c, username, False)
+                users.wait_sessions_gone(ctl, username)
                 flash(t("done_disabled"), "ok")
             elif action == "expiry":
                 users.set_expiry(c, username, request.form.get("expires_on", ""))
@@ -288,9 +296,11 @@ def create_app(cfg=None, priv=None, ctl=None, mailer=None, db_path=None, secret_
                 flash(t("done_unlocked"), "ok")
             elif action == "kick":
                 killed = users.kick_user(c, username)
+                users.wait_sessions_gone(ctl, username)
                 flash(t("done_kick", n=killed), "ok")
             elif action == "reset":
                 raw, mail_ok = users.reset_user(c, username)
+                users.wait_sessions_gone(ctl, username)
                 return render_template("link.html", row=users.get(g.conn, username),
                                        link=users.setup_link(cfg, raw), mail_ok=mail_ok)
             elif action == "delete":
@@ -298,6 +308,7 @@ def create_app(cfg=None, priv=None, ctl=None, mailer=None, db_path=None, secret_
                     flash(t("delete_confirm_mismatch"), "error")
                 else:
                     users.delete_user(c, username)
+                    users.wait_sessions_gone(ctl, username)
                     flash(t("done_deleted", username=username), "ok")
                     return redirect(url_for("user_list"))
             else:
@@ -386,7 +397,8 @@ def create_app(cfg=None, priv=None, ctl=None, mailer=None, db_path=None, secret_
                 return render_template("message.html", title=t("error"), text=t(exc.key)), 409
             return render_template("message.html", title=t("error"), text=t("download_failed")), 500
         except PrivError as exc:
-            db.audit(g.conn, "vpn:%s" % token["subject"], "profile.download_failed", token["subject"], str(exc),
+            db.audit(g.conn, "vpn:%s" % token["subject"], "profile.download_failed", token["subject"],
+                     db.detail("error", error=str(exc)),
                      client_ip(), g.now)
             return render_template("message.html", title=t("error"), text=t("download_failed")), 500
         db.audit(g.conn, "vpn:%s" % token["subject"], "profile.download", token["subject"], "", client_ip(), g.now)

@@ -86,7 +86,7 @@ class DaemonTest(unittest.TestCase):
         self.d = daemon_mod.Daemon(cfg, db_path=self.db_path, ctl_path=os.path.join(self.tmp, "c.sock"),
                                    verify_password=helpers.fake_verify)
         threading.Thread(target=self.d.worker, daemon=True).start()
-        link = daemon_mod.Link(self.sock, self.d.events.put)
+        link = daemon_mod.Link(self.sock, self.d.on_event)
         link.open()
         self.d.link = link
         while self.fake.conn is None:
@@ -137,6 +137,55 @@ class DaemonTest(unittest.TestCase):
         self.assertEqual(self.next_command(), 'client-kill 7 "%s"' % daemon_mod.KICK_MESSAGE)
         self.assertFalse(self.d.ctl_handle({"cmd": "kick", "username": "../x"})["ok"])
         self.assertFalse(self.d.ctl_handle({"cmd": "shutdown"})["ok"])
+
+    def list_names(self):
+        sessions = self.d.ctl_handle({"cmd": "list"})["sessions"]
+        self.assertEqual(self.next_command(), "status 3")
+        return [s["common_name"] for s in sessions]
+
+    def wait_for(self, predicate):
+        deadline = time.time() + 5
+        while not predicate():
+            self.assertLess(time.time(), deadline)
+            time.sleep(0.01)
+
+    def test_killed_session_hidden_until_disconnect(self):
+        # OpenVPN still lists a killed client for a few seconds (delayed exit).
+        self.assertEqual(self.list_names(), ["ali.veli"])
+        self.assertEqual(self.d.ctl_handle({"cmd": "kick", "username": "ali.veli"}), {"ok": True, "killed": 1})
+        self.next_command()                                   # status 3
+        self.next_command()                                   # client-kill 7
+        self.assertEqual(self.list_names(), [])               # fake OpenVPN still lists cid 7
+        self.assertEqual(self.d.ctl_handle({"cmd": "kick", "username": "ali.veli"})["killed"], 0)
+        self.next_command()
+        self.fake.send(">CLIENT:DISCONNECT,7")
+        self.fake.send(">CLIENT:ENV,common_name=ali.veli")
+        self.fake.send(">CLIENT:ENV,END")
+        self.wait_for(lambda: 7 not in self.d.closing)
+        self.assertEqual(self.list_names(), ["ali.veli"])     # a new session with a reused name would show
+
+    def test_closing_expires(self):
+        now = [1000.0]
+        self.d.clock = lambda: now[0]
+        self.d.ctl_handle({"cmd": "kick", "username": "ali.veli"})
+        self.next_command()
+        self.next_command()
+        self.assertEqual(self.list_names(), [])
+        now[0] += daemon_mod.CLOSING_SECONDS + 1
+        self.assertEqual(self.list_names(), ["ali.veli"])
+
+    def test_denied_reauth_kill_is_closing(self):
+        for line in self.connect_lines("REAUTH", 7, 2, "SESS_ID_x", state="Expired"):
+            self.fake.send(line)
+        self.assertTrue(self.next_command().startswith("client-deny 7 2 "))
+        self.assertTrue(self.next_command().startswith('client-kill 7 "HALT,'))
+        self.wait_for(lambda: 7 in self.d.closing)
+        self.assertEqual(self.list_names(), [])
+
+    def test_every_kill_goes_through_kill(self):
+        import inspect
+        src = inspect.getsource(daemon_mod.Daemon)
+        self.assertEqual(src.count("protocol.client_kill("), 1)    # only inside Daemon.kill()
 
     def test_link_down_is_reported(self):
         self.d.link.close()

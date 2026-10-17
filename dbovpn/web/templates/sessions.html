@@ -8,7 +8,7 @@
   <tr>
     <td><a href="{{ url_for('user_detail', username=s.common_name) }}">{{ s.common_name }}</a></td>
     <td>{{ names.get(s.common_name, '') }}</td><td>{{ s.vpn_ip }}</td><td>{{ s.real_address }}</td><td>{{ s.since|ts }}</td>
-    <td>{{ (s.bytes_in / 1048576)|round(1) }} / {{ (s.bytes_out / 1048576)|round(1) }} MB</td>
+    <td class="num">{{ s.bytes_in|size }} / {{ s.bytes_out|size }}</td>
     <td>
       {% if s.common_name in names %}
       <form method="post" action="{{ url_for('user_action', username=s.common_name, action='kick') }}" class="inline">
