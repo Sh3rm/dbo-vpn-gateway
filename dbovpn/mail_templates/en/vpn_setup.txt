@@ -1,0 +1,19 @@
+Subject: $customer VPN: set up your access
+
+Hello $display_name,
+
+A VPN account has been prepared for you on $customer VPN.
+
+User name: $username
+
+Open the link below to set your password, add the account to your authenticator app (Microsoft Authenticator, Google Authenticator or similar) and download your VPN profile:
+
+$link
+
+The link works once and is valid for $hours hours. If it expires, ask your administrator for a new one.
+
+When you connect, the OpenVPN client asks for your user name, your password and the 6-digit code from your authenticator app.
+
+Do not forward this mail. The link gives access to your account.
+
+$customer VPN

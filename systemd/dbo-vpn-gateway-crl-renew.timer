@@ -1,0 +1,12 @@
+# Installed by the dbo-vpn-gateway RPM.
+# Monthly, so the CRL (Easy-RSA default validity 180 days) never expires.
+[Unit]
+Description=Monthly dbo-vpn-gateway CRL renewal
+
+[Timer]
+OnCalendar=monthly
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+#!/usr/bin/python3 -I
+# dbo-vpn-gateway root helper. Run only through the sudoers rule for dbovpn;
+# python -I ignores PYTHON* environment variables and the user site directory.
+import sys
+
+from dbovpn.privhelper import main
+
+sys.exit(main())

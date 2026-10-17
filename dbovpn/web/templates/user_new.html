@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('create_user') }}</h1>
+<p>{{ t('slots_label', used=used, max=max_users) }}</p>
+<p class="hint">{{ t('slots_hint') }}</p>
+<form method="post" class="card narrow">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>{{ t('username') }} <input name="username" value="{{ form.username }}" required pattern="[a-z0-9][a-z0-9._\-]{1,63}" autocapitalize="none"></label>
+  <p class="hint">{{ t('username_hint') }}</p>
+  <label>{{ t('display_name') }} <input name="display_name" value="{{ form.display_name }}" required maxlength="100"></label>
+  <label>{{ t('email') }} <input name="email" type="email" value="{{ form.email }}" required></label>
+  <label>{{ t('expires_on') }} <input name="expires_on" type="date" value="{{ form.expires_on }}" min="{{ low }}" max="{{ high }}" required></label>
+  <p class="hint">{{ t('expiry_hint', max=cfg.max_expiry_days) }}</p>
+  <button type="submit">{{ t('create_user') }}</button>
+</form>
+{% endblock %}

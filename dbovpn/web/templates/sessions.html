@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('nav_sessions') }}</h1>
+{% if ctl_error %}<p class="flash error">{{ t('ctl_unreachable') }}</p>{% endif %}
+<table>
+  <tr><th>{{ t('username') }}</th><th>{{ t('display_name') }}</th><th>{{ t('vpn_ip') }}</th><th>{{ t('real_address') }}</th><th>{{ t('since') }}</th><th>{{ t('traffic') }}</th><th></th></tr>
+  {% for s in sessions %}
+  <tr>
+    <td><a href="{{ url_for('user_detail', username=s.common_name) }}">{{ s.common_name }}</a></td>
+    <td>{{ names.get(s.common_name, '') }}</td><td>{{ s.vpn_ip }}</td><td>{{ s.real_address }}</td><td>{{ s.since|ts }}</td>
+    <td>{{ (s.bytes_in / 1048576)|round(1) }} / {{ (s.bytes_out / 1048576)|round(1) }} MB</td>
+    <td>
+      {% if s.common_name in names %}
+      <form method="post" action="{{ url_for('user_action', username=s.common_name, action='kick') }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('kick') }}</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  {% if not ctl_error %}<tr><td colspan="7" class="muted">{{ t('none') }}</td></tr>{% endif %}
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('login_title') }}</h1>
+<form method="post" class="card narrow" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>{{ t('username') }} <input name="username" value="{{ username }}" required autofocus autocapitalize="none"></label>
+  <label>{{ t('password') }} <input name="password" type="password" required autocomplete="current-password"></label>
+  <label>{{ t('totp_code') }} <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></label>
+  <button type="submit">{{ t('login') }}</button>
+</form>
+{% endblock %}

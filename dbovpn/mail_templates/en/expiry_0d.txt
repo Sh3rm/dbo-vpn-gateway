@@ -1,0 +1,12 @@
+Subject: $customer VPN: $username reaches its expiry date
+
+Hello,
+
+The VPN account below reaches its expiry date.
+
+User: $display_name ($username)
+Last valid day: $expires_on
+
+From the day after this date the account cannot connect and any open session is closed. The account still counts against the user limit until it is deleted. To restore access, extend its expiry date in the panel: $panel_url
+
+$customer VPN

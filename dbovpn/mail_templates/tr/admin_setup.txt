@@ -1,0 +1,17 @@
+Subject: $customer VPN paneli: yönetici hesabı kurulumu
+
+Merhaba $display_name,
+
+$customer VPN panelinde sizin için bir yönetici hesabı hazırlandı.
+
+Kullanıcı adı: $username
+
+Parolanızı belirlemek ve hesabı doğrulayıcı uygulamanıza eklemek için aşağıdaki bağlantıyı şirket ağınızdan açın:
+
+$link
+
+Bağlantı yalnızca bir kez kullanılabilir ve $hours saat geçerlidir. Kurulumdan sonra $panel_url adresinde kullanıcı adınız, parolanız ve doğrulayıcı uygulamadaki 6 haneli kod ile oturum açın.
+
+Bu e-postayı kimseyle paylaşmayın.
+
+$customer VPN

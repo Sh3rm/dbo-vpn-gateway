@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('nav_users') }} <span class="muted">({{ used }} / {{ max_users }})</span></h1>
+<p><a class="button" href="{{ url_for('user_new') }}">{{ t('create_user') }}</a></p>
+<table>
+  <tr><th>{{ t('username') }}</th><th>{{ t('display_name') }}</th><th>{{ t('email') }}</th><th>{{ t('profile') }}</th><th>{{ t('vpn_ip') }}</th><th>{{ t('expires_on') }}</th><th>{{ t('status') }}</th></tr>
+  {% for r in rows %}
+  {% set st = status(r) %}
+  <tr>
+    <td><a href="{{ url_for('user_detail', username=r.username) }}">{{ r.username }}</a></td>
+    <td>{{ r.display_name }}</td><td>{{ r.email }}</td><td>{{ r.profile }}</td><td>{{ r.vpn_ip }}</td>
+    <td>{{ r.expires_on }}</td><td><span class="badge {{ st }}">{{ t('status_' + st) }}</span>{% if is_locked(r, now) %} <span class="badge locked">{{ t('locked_until', time=r.locked_until|hm) }}</span>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">{{ t('none') }}</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

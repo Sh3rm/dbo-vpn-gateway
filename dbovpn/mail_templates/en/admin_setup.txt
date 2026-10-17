@@ -1,0 +1,17 @@
+Subject: $customer VPN panel: set up your administrator account
+
+Hello $display_name,
+
+An administrator account has been prepared for you on the $customer VPN panel.
+
+User name: $username
+
+Open the link below from your company network to set your password and add the account to your authenticator app:
+
+$link
+
+The link works once and is valid for $hours hours. After setup, sign in at $panel_url with your user name, password and the 6-digit authenticator code.
+
+Do not forward this mail.
+
+$customer VPN

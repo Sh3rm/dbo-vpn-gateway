@@ -1,0 +1,12 @@
+Subject: $customer VPN: $username hesabı bitiş tarihine ulaştı
+
+Merhaba,
+
+Aşağıdaki VPN hesabı bitiş tarihine ulaştı.
+
+Kullanıcı: $display_name ($username)
+Son geçerli gün: $expires_on
+
+Bu tarihten sonraki günden itibaren hesap bağlanamaz ve açık oturumu kapatılır. Hesap silinene kadar kullanıcı sınırından düşülmeye devam eder. Erişimi geri açmak için paneldeki bitiş tarihini uzatın: $panel_url
+
+$customer VPN

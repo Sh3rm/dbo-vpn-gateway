@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ cfg.customer_name }} VPN{% endblock %}</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="{% if admin %}panel{% else %}public{% endif %}">
+<header class="top">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='dbo-logo.png') }}" alt="DBO" width="55" height="28">
+    <span class="product">{{ cfg.customer_name }} VPN</span>
+  </div>
+  {% if admin %}
+  <nav aria-label="{{ t('nav_label') }}">
+    {% for endpoint, key in [('dashboard', 'nav_dashboard'), ('user_list', 'nav_users'), ('session_list', 'nav_sessions'), ('audit_log', 'nav_audit')] %}
+    <a href="{{ url_for(endpoint) }}"{% if request.endpoint == endpoint or (endpoint == 'user_list' and request.endpoint in ('user_new', 'user_detail')) %} aria-current="page"{% endif %}>{{ t(key) }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+  <div class="tools">
+    {% for code in languages %}{% if code != lang %}<a href="?lang={{ code }}" lang="{{ code }}">{{ t('lang_' + code) }}</a>{% endif %}{% endfor %}
+    {% if admin %}
+    <span class="who">{{ admin.display_name }}</span>
+    <form method="post" action="{{ url_for('logout') }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="quiet">{{ t('logout') }}</button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+<main>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}<p class="flash {{ category }}" role="status">{{ message }}</p>{% endfor %}
+{% endwith %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

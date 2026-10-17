@@ -1,0 +1,26 @@
+# Copies of a live customer server's configuration: never published.
+docs/current-server/
+# Local copies of the OpenVPN 2.7 man page and management notes (GPL-licensed
+# upstream documentation, cited by line number in code comments).
+docs/upstream/
+
+# Real configuration, databases, keys and secrets
+/gateway.conf
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.key
+*.pem
+*.crt
+*.ovpn
+flask-secret.key
+web.env
+
+# Build output
+__pycache__/
+*.py[cod]
+/dist/
+/build/
+*.rpm
+*.tar.gz

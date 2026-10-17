@@ -1,0 +1,13 @@
+Subject: $customer VPN: certificate of $username ends before the account
+
+Hello,
+
+The VPN certificate of the account below ends before the account's last valid day. From $cert_not_after the user cannot connect, although the panel still shows the account as active.
+
+User: $display_name ($username)
+Certificate valid until: $cert_not_after
+Last valid day: $expires_on
+
+To fix it, reset the user in the panel: the new setup link issues a new certificate when the user downloads the profile. $panel_url
+
+$customer VPN

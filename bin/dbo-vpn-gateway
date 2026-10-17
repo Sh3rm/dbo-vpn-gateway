@@ -1,0 +1,7 @@
+#!/usr/bin/python3 -I
+# dbo-vpn-gateway: DBO's root-only administration command.
+import sys
+
+from dbovpn.cli import main
+
+sys.exit(main())

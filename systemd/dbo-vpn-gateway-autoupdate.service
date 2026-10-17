@@ -1,0 +1,10 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=dbo-vpn-gateway OpenVPN-only automatic update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Nice=19
+ExecStart=/usr/sbin/dbo-vpn-gateway autoupdate

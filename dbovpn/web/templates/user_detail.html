@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ row.display_name }} <span class="muted">({{ row.username }})</span></h1>
+<table class="kv">
+  <tr><th>{{ t('status') }}</th><td><span class="badge {{ status }}">{{ t('status_' + status) }}</span>{% if is_locked(row, now) %} <span class="badge locked">{{ t('locked_until', time=row.locked_until|hm) }}</span>{% endif %}</td></tr>
+  <tr><th>{{ t('email') }}</th><td>{{ row.email or '-' }}</td></tr>
+  <tr><th>{{ t('profile') }}</th><td>{{ row.profile }}{% if profile %} <span class="muted">({{ profile.description }})</span>{% endif %}</td></tr>
+  <tr><th>{{ t('vpn_ip') }}</th><td>{{ row.vpn_ip }}</td></tr>
+  <tr><th>{{ t('expires_on') }}</th><td>{{ row.expires_on }}</td></tr>
+  <tr><th>{{ t('cert_until') }}</th><td>{{ row.cert_not_after or t('cert_unknown') }}
+    {% if cert_ends_early(row) %}<span class="badge expired">{{ t('cert_short') }}</span>
+    {% elif needs_new_cert(row) %}<span class="hint">({{ t('cert_renewed_on_download') }})</span>{% endif %}</td></tr>
+  <tr><th>{{ t('created') }}</th><td>{{ row.created_at|ts }} ({{ row.created_by }})</td></tr>
+  <tr><th>{{ t('connected_now') }}</th><td>
+    {% if ctl_error %}{{ t('ctl_unreachable') }}{% elif sessions %}{% for s in sessions %}{{ s.real_address }} {{ t('since') }} {{ s.since|ts }}<br>{% endfor %}{% else %}{{ t('no') }}{% endif %}
+  </td></tr>
+</table>
+
+{% if is_locked(row, now) %}
+<div class="lockbox">
+  <p>{{ t('locked_explain', time=row.locked_until|hm) }}</p>
+  <form method="post" action="{{ url_for('user_action', username=row.username, action='unlock') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('unlock') }}</button>
+  </form>
+</div>
+{% endif %}
+<div class="actions">
+  {% if row.enabled %}
+  <form method="post" action="{{ url_for('user_action', username=row.username, action='disable') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('disable') }}</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('user_action', username=row.username, action='enable') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('enable') }}</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('user_action', username=row.username, action='kick') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('kick') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('user_action', username=row.username, action='reset') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('reset') }}</button>
+  </form>
+</div>
+<p class="hint">{{ t('reset_hint') }}</p>
+
+<h2>{{ t('change_expiry') }}</h2>
+<form method="post" action="{{ url_for('user_action', username=row.username, action='expiry') }}" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="expires_on" type="date" value="{{ row.expires_on }}" min="{{ low }}" max="{{ high }}" required>
+  <button type="submit">{{ t('save') }}</button>
+  <span class="hint">{{ t('expiry_hint', max=cfg.max_expiry_days) }}</span>
+</form>
+
+<h2>{{ t('delete_user') }}</h2>
+<form method="post" action="{{ url_for('user_action', username=row.username, action='delete') }}" class="row danger">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>{{ t('delete_confirm', username=row.username) }} <input name="confirm" required autocomplete="off" autocapitalize="none"></label>
+  <button type="submit" class="danger">{{ t('delete') }}</button>
+</form>
+<p class="hint">{{ t('delete_hint') }}</p>
+
+<h2>{{ t('history') }}</h2>
+<table>
+  <tr><th>{{ t('time') }}</th><th>{{ t('actor') }}</th><th>{{ t('action') }}</th><th>{{ t('detail') }}</th><th>{{ t('source_ip') }}</th></tr>
+  {% for a in history %}
+  <tr><td>{{ a.ts|ts }}</td><td>{{ a.actor }}</td><td title="{{ a.action }}">{{ action_label(a.action) }}</td><td title="{{ a.detail }}">{{ detail_label(a.detail) }}</td><td>{{ a.source_ip }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">{{ t('none') }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,26 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=dbo-vpn-gateway OpenVPN management daemon (client authentication)
+Documentation=file:///usr/share/doc/dbo-vpn-gateway/README.md
+After=network.target
+
+[Service]
+Type=simple
+User=dbovpn
+Group=dbovpn
+# Group openvpn lets the daemon reach the management socket under /run/openvpn-server.
+SupplementaryGroups=openvpn
+ExecStart=/usr/bin/python3 -I -m dbovpn.mgmt.daemon
+Restart=always
+RestartSec=2
+RuntimeDirectory=dbo-vpn-gateway
+RuntimeDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/dbo-vpn-gateway
+
+[Install]
+WantedBy=multi-user.target

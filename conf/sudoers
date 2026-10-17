@@ -1,0 +1,5 @@
+# Installed by the dbo-vpn-gateway RPM.
+# The panel (user dbovpn) may run exactly one root program, the gateway's
+# helper, which validates every argument itself.
+Defaults:dbovpn !requiretty
+dbovpn ALL=(root) NOPASSWD: /usr/libexec/dbo-vpn-gateway/privhelper

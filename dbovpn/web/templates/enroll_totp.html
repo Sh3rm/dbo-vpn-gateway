@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('enroll_title') if kind == 'vpn' else t('admin_enroll_title') }}</h1>
+<p class="steps">{{ t('enroll_step2') }}</p>
+{% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+<div class="card narrow">
+  <img class="qr" src="{{ qr }}" alt="QR">
+  <p class="hint">{{ t('manual_entry', issuer=issuer) }}</p>
+  <p class="linkbox"><code>{{ secret }}</code></p>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="step" value="totp">
+    <label>{{ t('totp_code') }} <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus autocomplete="one-time-code"></label>
+    <button type="submit">{{ t('verify') }}</button>
+  </form>
+</div>
+{% endblock %}

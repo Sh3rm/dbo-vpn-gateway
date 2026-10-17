@@ -1,0 +1,12 @@
+Subject: $customer VPN: $username expires on $expires_on
+
+Hello,
+
+The VPN account below expires soon.
+
+User: $display_name ($username)
+Last valid day: $expires_on ($days_left days left)
+
+To keep the account working, extend its expiry date in the panel: $panel_url
+
+$customer VPN

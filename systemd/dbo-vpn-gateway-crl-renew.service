@@ -1,0 +1,7 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=dbo-vpn-gateway CRL renewal
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/dbo-vpn-gateway crl-renew

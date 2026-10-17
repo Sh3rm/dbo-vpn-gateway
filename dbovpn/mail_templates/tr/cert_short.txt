@@ -1,0 +1,13 @@
+Subject: $customer VPN: $username sertifikası hesaptan önce bitiyor
+
+Merhaba,
+
+Aşağıdaki hesabın VPN sertifikası, hesabın son geçerli gününden önce bitiyor. Panel hesabı etkin gösterse de kullanıcı $cert_not_after tarihinden itibaren bağlanamaz.
+
+Kullanıcı: $display_name ($username)
+Sertifika bitişi: $cert_not_after
+Son geçerli gün: $expires_on
+
+Sorunu gidermek için kullanıcıyı panelden sıfırlayın: yeni kurulum bağlantısıyla kullanıcı profili indirdiğinde yeni sertifika oluşturulur. $panel_url
+
+$customer VPN

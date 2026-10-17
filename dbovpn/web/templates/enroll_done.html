@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('enroll_done_title') }}</h1>
+{% if kind == 'vpn' %}
+<p class="steps">{{ t('enroll_step3') }}</p>
+<form method="post" action="{{ url_for('enroll_download', raw=raw) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">{{ t('download_profile') }}</button>
+</form>
+<p class="hint">{{ t('download_once') }}</p>
+<h2>{{ t('how_to_connect') }}</h2>
+<ol>
+  <li>{{ t('connect_1') }}</li>
+  <li>{{ t('connect_2') }}</li>
+  <li>{{ t('connect_3', username=subject.username) }}</li>
+</ol>
+{% else %}
+<p>{{ t('admin_enroll_done') }}</p>
+<p><a class="button" href="{{ url_for('login') }}">{{ t('login') }}</a></p>
+{% endif %}
+{% endblock %}

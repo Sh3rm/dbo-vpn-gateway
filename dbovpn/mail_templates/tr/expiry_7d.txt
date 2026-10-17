@@ -1,0 +1,12 @@
+Subject: $customer VPN: $username hesabının süresi $expires_on tarihinde doluyor
+
+Merhaba,
+
+Aşağıdaki VPN hesabının süresi yakında doluyor.
+
+Kullanıcı: $display_name ($username)
+Son geçerli gün: $expires_on (kalan gün: $days_left)
+
+Hesabın çalışmaya devam etmesi için paneldeki bitiş tarihini uzatın: $panel_url
+
+$customer VPN

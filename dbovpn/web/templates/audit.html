@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('nav_audit') }}</h1>
+<table>
+  <tr><th>{{ t('time') }}</th><th>{{ t('actor') }}</th><th>{{ t('action') }}</th><th>{{ t('target') }}</th><th>{{ t('detail') }}</th><th>{{ t('source_ip') }}</th></tr>
+  {% for a in rows %}
+  <tr><td>{{ a.ts|ts }}</td><td>{{ a.actor }}</td><td title="{{ a.action }}">{{ action_label(a.action) }}</td><td>{{ a.target }}</td><td title="{{ a.detail }}">{{ detail_label(a.detail) }}</td><td>{{ a.source_ip }}</td></tr>
+  {% else %}<tr><td colspan="6" class="muted">{{ t('none') }}</td></tr>{% endfor %}
+</table>
+<p class="pager">
+  {% if page > 1 %}<a href="{{ url_for('audit_log', page=page - 1) }}">&larr; {{ t('newer') }}</a>{% endif %}
+  {% if more %}<a href="{{ url_for('audit_log', page=page + 1) }}">{{ t('older') }} &rarr;</a>{% endif %}
+</p>
+{% endblock %}

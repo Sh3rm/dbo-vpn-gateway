@@ -1,0 +1,23 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=dbo-vpn-gateway web panel (gunicorn on 127.0.0.1, behind nginx)
+Documentation=file:///usr/share/doc/dbo-vpn-gateway/README.md
+After=network.target dbo-vpn-gateway-mgmt.service
+
+[Service]
+Type=simple
+User=dbovpn
+Group=dbovpn
+# No NoNewPrivileges and no ProtectSystem/ProtectHome: the panel runs the root helper
+# through sudo, and that helper inherits this unit's mount namespace while it writes
+# the PKI and CRL under /etc/openvpn.
+Environment=DBOVPN_LISTEN=127.0.0.1:8471
+EnvironmentFile=-/etc/dbo-vpn-gateway/web.env
+ExecStart=/usr/bin/gunicorn --workers 2 --timeout 190 --bind ${DBOVPN_LISTEN} --forwarded-allow-ips 127.0.0.1 "dbovpn.web.app:create_app()"
+Restart=always
+RestartSec=2
+UMask=0077
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

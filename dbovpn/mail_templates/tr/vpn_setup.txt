@@ -1,0 +1,19 @@
+Subject: $customer VPN: erişim kurulumu
+
+Merhaba $display_name,
+
+$customer VPN üzerinde sizin için bir VPN hesabı hazırlandı.
+
+Kullanıcı adı: $username
+
+Aşağıdaki bağlantıyı açarak parolanızı belirleyin, hesabı doğrulayıcı uygulamanıza (Microsoft Authenticator, Google Authenticator veya benzeri) ekleyin ve VPN profilinizi indirin:
+
+$link
+
+Bağlantı yalnızca bir kez kullanılabilir ve $hours saat geçerlidir. Süresi dolarsa yöneticinizden yeni bir bağlantı isteyin.
+
+Bağlanırken OpenVPN istemcisi kullanıcı adınızı, parolanızı ve doğrulayıcı uygulamadaki 6 haneli kodu sorar.
+
+Bu e-postayı kimseyle paylaşmayın. Bağlantı hesabınıza erişim sağlar.
+
+$customer VPN

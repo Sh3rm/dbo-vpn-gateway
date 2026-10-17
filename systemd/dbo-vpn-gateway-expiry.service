@@ -1,0 +1,14 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=dbo-vpn-gateway expiry job (expire, kick, remind admins, purge setup links)
+
+[Service]
+Type=oneshot
+User=dbovpn
+Group=dbovpn
+UMask=0077
+ExecStart=/usr/bin/python3 -I -m dbovpn.jobs
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes

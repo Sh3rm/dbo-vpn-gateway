@@ -1,0 +1,11 @@
+# Installed by the dbo-vpn-gateway RPM.
+[Unit]
+Description=Hourly dbo-vpn-gateway expiry job
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
