@@ -1,5 +1,5 @@
 Name:           dbo-vpn-gateway
-Version:        1.0.1
+Version:        1.0.2
 Release:        1%{?dist}
 Summary:        OpenVPN 2.7 remote-access gateway with a self-service web panel
 License:        Apache-2.0
@@ -109,6 +109,9 @@ exit 0
 %ghost %config(noreplace) %{_sysconfdir}/%{name}/web.env
 
 %changelog
+* Sat Oct 17 2026 Sh3rm - 1.0.2-1
+- Favicon: the full DBO logo instead of a single letter
+
 * Sat Oct 17 2026 Sh3rm - 1.0.1-1
 - Favicon: draw the logo "b" so it reads correctly at tab size
 

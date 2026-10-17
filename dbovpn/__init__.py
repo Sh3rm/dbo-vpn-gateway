@@ -1,6 +1,6 @@
 """dbo-vpn-gateway: OpenVPN 2.7 remote-access gateway with a self-service web panel."""
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 CONFIG_PATH = "/etc/dbo-vpn-gateway/gateway.conf"
 SERVICE_USER = "dbovpn"

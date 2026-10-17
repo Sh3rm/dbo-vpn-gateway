@@ -38,7 +38,7 @@ On a fresh Rocky Linux 9 or RHEL 9 server, as root.
 2. Install the RPM from the GitHub release:
 
    ```
-   dnf -y install --setopt=install_weak_deps=False https://github.com/Sh3rm/dbo-vpn-gateway/releases/download/v1.0.1/dbo-vpn-gateway-1.0.1-1.el9.noarch.rpm
+   dnf -y install --setopt=install_weak_deps=False https://github.com/Sh3rm/dbo-vpn-gateway/releases/download/v1.0.2/dbo-vpn-gateway-1.0.2-1.el9.noarch.rpm
    ```
 
    `install_weak_deps=False` matters: otherwise the Copr openvpn package pulls in its data-channel-offload kernel module through DKMS (dkms, gcc, kernel-devel, llvm: about 50 packages), which the gateway does not use.
